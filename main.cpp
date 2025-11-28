@@ -5,7 +5,9 @@
 #include "float.h"
 #include "camera.h"
 #include "material.h"
-
+#include <vector>
+#include <omp.h>
+#include <random>
 
 vec3 color(const ray& r, hitable *world, int depth) {
     hit_record rec;
@@ -55,10 +57,11 @@ hitable *random_scene() {
 
 int main() {
     std::ofstream outfile("output.ppm");
-    int nx = 200;
-    int ny = 100;
+    int nx = 800;
+    int ny = 400;
     int ns = 100;
 
+    std::vector<vec3> framebuffer(nx * ny);
     outfile << "P3\n" << nx << " " << ny << "\n255\n";
 
     hitable *world = random_scene();
@@ -68,22 +71,34 @@ int main() {
     float aperture = 0.1;
     camera cam(lookfrom, lookat, vec3(0,1,0), 20, float(nx)/float(ny), aperture, dist_to_focus);
 
+    #pragma omp parallel
+    {
+        std::mt19937 rng(1337 + 17 * omp_get_thread_num());
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
 
-    for (int j = ny - 1; j >= 0; j--) {
-        for (int i = 0; i < nx; i++) {
-            vec3 col(0,0,0);
+        #pragma omp for schedule(static)
+        for (int j = ny - 1; j >= 0; j--) {
+            for (int i = 0; i < nx; i++) {
+                vec3 col(0,0,0);
+                for (int s = 0; s < ns; s++) {
+                    float u = float(i + dist(rng)) / float(nx);
+                    float v = float(j + dist(rng)) / float(ny);
 
-            for (int s = 0; s < ns; s++) {
-                float u = float(i + drand48()) / float(nx);
-                float v = float(j + drand48()) / float(ny);
-                
-                ray r = cam.get_ray(u, v);
-                vec3 p = r.point_at_parameter(2.0);
-                col += color(r, world, 0);
+                    ray r = cam.get_ray(u, v);
+                    col += color(r, world, 0);
+                }
+                col /= float(ns);
+                col = vec3( sqrt(col[0]), sqrt(col[1]), sqrt(col[2]) );
+
+                int idx = (ny - 1 - j) * nx + i;
+                framebuffer[idx] = col;
             }
-
-            col /= float(ns);
-            col = vec3( sqrt(col[0]), sqrt(col[1]), sqrt(col[2]) );
+        }
+    }
+    for (int j = 0; j < ny; j++) {
+        for (int i = 0; i < nx; i++) {
+            int idx = j * nx + i;
+            vec3 col = framebuffer[idx];
             int ir = int(255.99 * col.r());
             int ig = int(255.99 * col.g());
             int ib = int(255.99 * col.b());
