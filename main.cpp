@@ -5,6 +5,7 @@
 #include "float.h"
 #include "camera.h"
 #include "material.h"
+#include "bvh.h"
 #include <vector>
 #include <omp.h>
 #include <random>
@@ -52,14 +53,18 @@ hitable *random_scene() {
     list[i++] = new sphere(vec3(-4,1,0), 1.0, new lambertian(vec3(0.4, 0.2, 0.1)));
     list[i++] = new sphere(vec3(4,1,0), 1.0, new metal(vec3(0.7, 0.6, 0.5), 0.0));
 
-    return new hitable_list(list,i);
+    // no BVH
+    // return new hitable_list(list, i);
+    
+    // with BVH
+    return new bvh_node(list, i, 0.0f, 1.0f);
 }
 
 int main() {
-    std::ofstream outfile("output.ppm");
-    int nx = 800;
-    int ny = 400;
-    int ns = 100;
+    std::ofstream outfile("output2.ppm");
+    int nx = 1920/2;
+    int ny = 1080/2;
+    int ns = 500;
 
     std::vector<vec3> framebuffer(nx * ny);
     outfile << "P3\n" << nx << " " << ny << "\n255\n";

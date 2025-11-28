@@ -1,1 +1,1 @@
-g++ -O3 -march=native -fopenmp main.cpp -o main && ./main && feh output.ppm
+g++ -O3 -march=native -ffast-math -flto -fopenmp main.cpp -o main && ./main
